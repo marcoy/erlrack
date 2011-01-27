@@ -14,7 +14,8 @@
 %% API Function Exports
 %% ------------------------------------------------------------------
 
--export([start_link/0, authenticate/2, authenticate/3]).
+-export([start_link/0, authenticate/2, authenticate/3, 
+         get_flavours/0, get_images/0]).
 
 %% ------------------------------------------------------------------
 %% gen_server Function Exports
@@ -49,6 +50,12 @@ authenticate(Username, APIKey) ->
 authenticate(Username, APIKey, Location) ->
     gen_server:call(?SERVER, {authenticate, Username, APIKey, Location}).
 
+get_flavours() ->
+    gen_server:call(?SERVER, flavours).
+
+get_images() ->
+    gen_server:call(?SERVER, images).
+
 %% ------------------------------------------------------------------
 %% gen_server Function Definitions
 %% ------------------------------------------------------------------
@@ -72,7 +79,23 @@ handle_call({authenticate, Username, APIKey, Location}, _From, State) ->
             {reply, ok, NewState};
         error ->
             {reply, {error, NewState}, State}
-    end.
+    end;
+handle_call(flavours, _From, State) ->
+    ReqURL = State#rackspace.management_url ++ ?FLV_END,
+    ReqHdr = [ {?AUTH_TOKEN, State#rackspace.auth_token} ],
+    {ok, Status, RespHdrs, RespBody} = ibrowse:send_req(ReqURL,
+                                                        ReqHdr,
+                                                        get),
+    io:format("RespBody: ~s~n", [RespBody]),
+    {reply, ok, State};
+handle_call(images, _From, State) ->
+    ReqURL = State#rackspace.management_url ++ ?IMG_END,
+    ReqHdr = [ {?AUTH_TOKEN, State#rackspace.auth_token} ],
+    {ok, Status, RespHdrs, RespBody} = ibrowse:send_req(ReqURL,
+                                                        ReqHdr,
+                                                        get),
+    io:format("RespBody: ~s~n", [RespBody]),
+    {reply, ok, State}.
 
 handle_cast(_Msg, State) ->
     {noreply, State}.
@@ -116,7 +139,7 @@ do_authenticate(Username, APIKey, Location) ->
             io:format("Token: ~s, URL: ~s~n", [Token, ManURL]),
             NewState = #rackspace{username = Username, api_key = APIKey,
                                   auth_token = Token, management_url = ManURL,
-                                  auth_url = AuthURL},
+                                  auth_url = AuthURL, location = Location},
             {ok, NewState};
         "401" ->
             {error, "Authentication failed"};

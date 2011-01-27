@@ -13,6 +13,15 @@
 -define(AUTH_TOKEN, "X-Auth-Token").
 -define(SRV_MAN_URL, "X-Server-Management-Url").
 
+% URL Endpoints
+-define(FLV_END, "/flavors/detail").
+-define(IMG_END, "/images").
+
+% Rackspace server
+-record(server, {name, image_id, flavor_id}).
+
+% gen_sever state
 -record(rackspace, {username, api_key, auth_token, management_url,
-                    auth_url=?US_AUTH_URL}).
+                    auth_url=?US_AUTH_URL, location}).
+
 
