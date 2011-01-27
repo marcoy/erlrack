@@ -1,0 +1,25 @@
+{application, erlrack,
+ [
+  {description, "Erlang API for Rackspace"},
+  {vsn, "1"},
+  {registered, [erlrack_sup, erlrack]},
+  {modules, [
+              erlrack,
+              erlrack_app,
+              erlrack_sup
+            ]},
+  {applications, [
+                  kernel,
+                  stdlib,
+                  sasl,
+                  crypto,
+                  public_key,
+                  ssl,
+                  ibrowse
+                 ]},
+  {mod, { erlrack_app, []}},
+  {env, []}
+ ]}.
+
+% vim: set ft=erlang:
+
