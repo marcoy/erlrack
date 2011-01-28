@@ -18,6 +18,9 @@ distclean: clean
 update:
 	@./rebar update-deps
 
+tests:
+	@./rebar skip_deps=true eunit
+
 docs:
 	@./rebar skip_deps=true doc
 

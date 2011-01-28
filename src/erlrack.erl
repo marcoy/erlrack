@@ -97,10 +97,12 @@ handle_call({authenticate, Username, APIKey, Location}, _From, State) ->
     end;
 handle_call(flavours, _From, State) ->
     {ok, RespBody, NewState} = do_get_resource(State, ?FLV_END),
-    {reply, ok, NewState};
+    Reply = er_output:format_flavour_output(RespBody),
+    {reply, Reply, NewState};
 handle_call(images, _From, State) ->
     {ok, RespBody, NewState} = do_get_resource(State, ?IMG_END),
-    {reply, ok, NewState};
+    Reply = er_output:format_img_output(RespBody),
+    {reply, Reply, NewState};
 handle_call({ create_server, SrvTemplate, Count }, 
             _From, State) ->
     do_create_server(State, SrvTemplate, Count, []),
@@ -194,7 +196,7 @@ do_get_resource(State, ResourceEndPoint) ->
     {ok, Status, _RespHdrs, RespBody} = ibrowse:send_req(ReqURL,
                                                          ReqHdr,
                                                          get),
-    io:format("RespBody: ~s~n", [RespBody]),
+    io:format("RespBody: ~p~n", [RespBody]),
     case Status of
         "200" ->
             {ok, RespBody, State};

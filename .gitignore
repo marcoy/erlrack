@@ -4,3 +4,4 @@ deps/
 *.png
 *.css
 doc/edoc-info
+.eunit/
