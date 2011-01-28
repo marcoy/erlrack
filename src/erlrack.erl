@@ -96,21 +96,11 @@ handle_call({authenticate, Username, APIKey, Location}, _From, State) ->
             {reply, {error, NewState}, State}
     end;
 handle_call(flavours, _From, State) ->
-    ReqURL = State#rackspace.management_url ++ ?FLV_END,
-    ReqHdr = [ {?AUTH_TOKEN, State#rackspace.auth_token} ],
-    {ok, Status, RespHdrs, RespBody} = ibrowse:send_req(ReqURL,
-                                                        ReqHdr,
-                                                        get),
-    io:format("RespBody: ~s~n", [RespBody]),
-    {reply, ok, State};
+    {ok, RespBody, NewState} = do_get_resource(State, ?FLV_END),
+    {reply, ok, NewState};
 handle_call(images, _From, State) ->
-    ReqURL = State#rackspace.management_url ++ ?IMG_END,
-    ReqHdr = [ {?AUTH_TOKEN, State#rackspace.auth_token} ],
-    {ok, Status, RespHdrs, RespBody} = ibrowse:send_req(ReqURL,
-                                                        ReqHdr,
-                                                        get),
-    io:format("RespBody: ~s~n", [RespBody]),
-    {reply, ok, State};
+    {ok, RespBody, NewState} = do_get_resource(State, ?IMG_END),
+    {reply, ok, NewState};
 handle_call({ create_server, SrvTemplate, Count }, 
             _From, State) ->
     do_create_server(State, SrvTemplate, Count, []),
@@ -171,7 +161,7 @@ do_authenticate(Username, APIKey, Location) ->
 % @spec do_create_server(State::#rackspace{}, SrvTemplate::#servers{},
 %                        Count::int(), Out::list()) -> list()
 % @todo Some error checking (Normal Response Code is 202)
-do_create_server(State, SrvTemplate, Count, Out) when Count =< 0 ->
+do_create_server(_State, _SrvTemplate, Count, Out) when Count =< 0 ->
     Out;
 do_create_server(State, SrvTemplate, Count, Out) ->
     ReqBdy = template2json(SrvTemplate),
@@ -190,6 +180,34 @@ do_create_server(State, SrvTemplate, Count, Out) ->
         "413" -> % over limit (50/day)
             io:format("Over limit"),
             do_create_server(Status, SrvTemplate, 0, Out)
+    end.
+
+% @doc Perform a GET request on a given resource.
+% @spec do_get_resource(State, ResourceEndPoint::string()) ->
+%       Reply
+%       State = #rackspace{}
+%       Reply = {ok, string(), #rackspace{}} |
+%               {error, string(), #rackspace{}}
+do_get_resource(State, ResourceEndPoint) ->
+    ReqURL = State#rackspace.management_url ++ ResourceEndPoint,
+    ReqHdr = [ {?AUTH_TOKEN, State#rackspace.auth_token} ],
+    {ok, Status, _RespHdrs, RespBody} = ibrowse:send_req(ReqURL,
+                                                         ReqHdr,
+                                                         get),
+    io:format("RespBody: ~s~n", [RespBody]),
+    case Status of
+        "200" ->
+            {ok, RespBody, State};
+        "203" ->
+            {ok, RespBody, State};
+        "401" ->
+            % re-authenticate and retry
+            {ok, NewState} = do_authenticate(State#rackspace.username,
+                                             State#rackspace.api_key,
+                                             State#rackspace.location),
+            do_get_resource(NewState, ResourceEndPoint);
+        _ ->
+            {error, "unknown error", State}
     end.
 
 % @doc Helper for creating server record.
