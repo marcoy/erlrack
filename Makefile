@@ -18,3 +18,6 @@ distclean: clean
 update:
 	@./rebar update-deps
 
+docs:
+	@./rebar skip_deps=true doc
+

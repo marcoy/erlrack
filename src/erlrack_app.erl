@@ -1,3 +1,8 @@
+%%
+%% @author Marco Yuen <marcoy@cs.princeton.edu>
+%% @copyright 2011 Marco Yuen
+%%
+
 -module(erlrack_app).
 
 -behaviour(application).

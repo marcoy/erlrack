@@ -1,2 +1,6 @@
 ebin/
 deps/
+*.html
+*.png
+*.css
+doc/edoc-info

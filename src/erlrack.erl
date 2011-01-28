@@ -1,7 +1,8 @@
 %%
 %% @author Marco Yuen <marcoy@cs.princeton.edu>
-%% @copyright Marco Yuen 2011
-%% @doc Erlang API for Rackspace.
+%% @copyright 2011 Marco Yuen
+%% @doc The frontend module for users. This module contains all of the
+%%      API functions.
 %%
 
 -module(erlrack).
@@ -40,24 +41,32 @@ start_link() ->
     gen_server:start_link({local, ?SERVER}, ?MODULE, [], 
                           [{debug, [trace,log]}]).
 
-% @doc Authenicates with Rackspace API server.
+% @doc Authenicates with Rackspace API server. Location defaults to us.
 % @spec authenticate(Username::string(), APIKey::string()) ->
 %       term()
 authenticate(Username, APIKey) ->
     gen_server:call(?SERVER, {authenticate, Username, APIKey}).
 
-% @doc Authenicates with Rackspace API server.
+% @doc Authenicates with Rackspace API server with location.
 % @spec authenticate(Username::string(), APIKey::string(), 
-%                    Location::atom()) -> term()
+%                    Location) -> term()
+%       Location = us | uk
 authenticate(Username, APIKey, Location) ->
     gen_server:call(?SERVER, {authenticate, Username, APIKey, Location}).
 
+% @doc Gets the different types of flavour from Rackspace.
+% @spec get_flavours() -> term()
 get_flavours() ->
     gen_server:call(?SERVER, flavours).
 
+% @doc Gets the different types of image from Rackspace.
+% @spec get_images() -> term()
 get_images() ->
     gen_server:call(?SERVER, images).
 
+% @doc Creates a cloud server on Rackspace.
+% @spec create_server(ServerTemplate::#server{}, Count::int()) -> Output
+%       Output = [term()]
 create_server(ServerTemplate, Count) ->
     gen_server:call(?SERVER, {create_server, ServerTemplate, Count}).
 
@@ -133,8 +142,9 @@ loc2url(Loc) ->
     end.
 
 % @doc Authenticates with Rackspace API server.
-% @spec do_authenticate(Username::string(), APIKey::string(), Location::atom()) ->
-%       {ok, #rackspace} | {error, string()}
+% @spec do_authenticate(Username::string(), APIKey::string(), 
+%                       Location::atom()) -> Reply
+%       Reply = {ok, #rackspace{}} | {error, string()}
 do_authenticate(Username, APIKey, Location) ->
     Headers = [ {?AUTH_USER_HDR, Username}, {?AUTH_KEY_HDR, APIKey} ],
     AuthURL = loc2url(Location),

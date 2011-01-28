@@ -1,0 +1,15 @@
+@author Marco Yuen <marcoy@cs.princeton.edu>
+@copyright 2011 Marco Yuen
+@version 0.1
+@title Erlang API for Rackspace
+@doc The <em>erlrack</em> application allows users to use Erlang
+     to control <a href="http://www.rackspace.com">Rackspace</a> cloud servers.
+     == Basic Usage ==
+     You <b>must</b> obtain an API key from your Rackspace account first.
+
+     Before any calls, you will need to {@link erlrack:authenticate/2. authenticate} 
+     with the Rackspace API server using your <em>username</em> and <em>API key</em>.
+     Once you have successfully authenticated, you can start using functions defined
+     in <em>erlrack</em> to control the cloud servers 
+     (e.g. {@link erlrack:create_server/2. create_server}).
+

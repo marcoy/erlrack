@@ -1,6 +1,6 @@
 %%
 %% @author Marco Yuen <marcoy@cs.princeton.edu>
-%% @copyright Marco Yuen 2011
+%% @copyright 2011 Marco Yuen
 %%
 
 -module(erlrack_sup).
