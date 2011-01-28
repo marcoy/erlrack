@@ -16,6 +16,7 @@
 % URL Endpoints
 -define(FLV_END, "/flavors/detail").
 -define(IMG_END, "/images").
+-define(SRV_END, "/servers").
 
 % Rackspace server
 -record(server, {name, image_id, flavor_id}).

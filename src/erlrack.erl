@@ -15,7 +15,9 @@
 %% ------------------------------------------------------------------
 
 -export([start_link/0, authenticate/2, authenticate/3, 
-         get_flavours/0, get_images/0]).
+         get_flavours/0, get_images/0, create_server/2]).
+
+-export([create_template/3, template2json/1]).
 
 %% ------------------------------------------------------------------
 %% gen_server Function Exports
@@ -45,8 +47,8 @@ authenticate(Username, APIKey) ->
     gen_server:call(?SERVER, {authenticate, Username, APIKey}).
 
 % @doc Authenicates with Rackspace API server.
-% @spec authenticate(Username::string(), APIKey::string(), Location::atom()) ->
-%       term()
+% @spec authenticate(Username::string(), APIKey::string(), 
+%                    Location::atom()) -> term()
 authenticate(Username, APIKey, Location) ->
     gen_server:call(?SERVER, {authenticate, Username, APIKey, Location}).
 
@@ -56,12 +58,16 @@ get_flavours() ->
 get_images() ->
     gen_server:call(?SERVER, images).
 
+create_server(ServerTemplate, Count) ->
+    gen_server:call(?SERVER, {create_server, ServerTemplate, Count}).
+
 %% ------------------------------------------------------------------
 %% gen_server Function Definitions
 %% ------------------------------------------------------------------
 
 init([]) ->
     NewState = #rackspace{},
+    ibrowse:trace_on(),
     {ok, NewState}.
 
 handle_call({authenticate, Username, APIKey}, _From, State) ->
@@ -95,6 +101,10 @@ handle_call(images, _From, State) ->
                                                         ReqHdr,
                                                         get),
     io:format("RespBody: ~s~n", [RespBody]),
+    {reply, ok, State};
+handle_call({ create_server, SrvTemplate, Count }, 
+            _From, State) ->
+    do_create_server(State, SrvTemplate, Count, []),
     {reply, ok, State}.
 
 handle_cast(_Msg, State) ->
@@ -146,6 +156,52 @@ do_authenticate(Username, APIKey, Location) ->
         _ ->
             {error, Status}
     end.
+
+% @doc Create cloud servers in Rackspace.
+% @spec do_create_server(State::#rackspace{}, SrvTemplate::#servers{},
+%                        Count::int(), Out::list()) -> list()
+% @todo Some error checking (Normal Response Code is 202)
+do_create_server(State, SrvTemplate, Count, Out) when Count =< 0 ->
+    Out;
+do_create_server(State, SrvTemplate, Count, Out) ->
+    ReqBdy = template2json(SrvTemplate),
+    ReqURL = State#rackspace.management_url ++ ?SRV_END,
+    ReqHdr = [ {?AUTH_TOKEN, State#rackspace.auth_token} ],
+    {ok, Status, RespHdrs, RespBody} = ibrowse:send_req(ReqURL,
+                                                        ReqHdr,
+                                                        post,
+                                                        [ReqBdy]),
+    io:format("Status: ~p~n", [Status]),
+    io:format("RespHdrs: ~p~n", [RespHdrs]),
+    io:format("RespBody: ~p~n", [RespBody]),
+    case Status of
+        "202" -> % Normal
+            do_create_server(Status, SrvTemplate, Count-1, [RespBody|Out]);
+        "413" -> % over limit (50/day)
+            io:format("Over limit"),
+            do_create_server(Status, SrvTemplate, 0, Out)
+    end.
+
+% @doc Helper for creating server record.
+% @spec create_template(Name::string(), ImageID::int(), 
+%                       FlavourID::int()) -> #server{}
+% ImageID = 55, FlavourID = 1
+create_template(Name, ImageID, FlavourID) ->
+    #server{image_id  = ImageID, 
+            flavor_id = FlavourID,
+            name      = Name}.
+
+% @doc Converts a server record (template) into a JSON.
+% @spec template2json(ServerTemplate::#server{}) -> iolist()
+template2json(ServerTemplate) ->
+    #server{image_id  = ImageID, 
+            flavor_id = FlavourID, 
+            name      = Name} = ServerTemplate,
+    Details = {struct, [{ <<"name">>, list_to_binary(Name) },
+                        { <<"imageId">>, ImageID },
+                        { <<"flavorId">>, FlavourID }]},
+    Req = {struct, [{ <<"server">>, Details }]},
+    mochijson2:encode(Req).
 
 %% ------------------------------------------------------------------
 %% Startup Function Definitions
