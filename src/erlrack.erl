@@ -49,9 +49,9 @@ authenticate(Username, APIKey) ->
     gen_server:call(?SERVER, {authenticate, Username, APIKey}).
 
 % @doc Authenicates with Rackspace API server with location.
+% @type location() = us | uk
 % @spec authenticate(Username::string(), APIKey::string(), 
-%                    Location) -> term()
-%       Location = us | uk
+%                    Location::location()) -> term()
 authenticate(Username, APIKey, Location) ->
     gen_server:call(?SERVER, {authenticate, Username, APIKey, Location}).
 
