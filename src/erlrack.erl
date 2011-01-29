@@ -17,9 +17,9 @@
 
 -export([start_link/0, authenticate/2, authenticate/3, 
          get_flavours/0, get_images/0, create_server/2,
-         list_server/0]).
+         list_server/0, change_passwd/2]).
 
--export([create_template/3, template2json/1]).
+-export([create_template/3, template2json/1, create_chpasswd_json/1]).
 
 %% ------------------------------------------------------------------
 %% gen_server Function Exports
@@ -76,6 +76,11 @@ create_server(ServerTemplate, Count) ->
 list_server() ->
     gen_server:call(?SERVER, list_server).
 
+% @doc Changes the password of a given Cloud Server.
+% @spec change_passwd(HostID::string(), NewPass::string()) -> ok
+change_passwd(HostID, NewPass) ->
+    gen_server:call(?SERVER, {change_passwd, HostID, NewPass}).
+
 %% ------------------------------------------------------------------
 %% gen_server Function Definitions
 %% ------------------------------------------------------------------
@@ -116,6 +121,9 @@ handle_call({ create_server, SrvTemplate, Count },
 handle_call(list_server, _From, State) ->
     {ok, RespBody, NewState} = do_get_resource(State, ?LST_SRV_END),
     Reply = er_output:format_list_srv_output(RespBody),
+    {reply, Reply, NewState};
+handle_call({change_passwd, HostID, NewPass}, _From, State) ->
+    {ok, Reply, NewState} = do_change_passwd(State, HostID, NewPass),
     {reply, Reply, NewState}.
 
 handle_cast(_Msg, State) ->
@@ -222,6 +230,29 @@ do_get_resource(State, ResourceEndPoint) ->
             {error, "unknown error", State}
     end.
 
+% @doc Changes the password of a Cloud Server.
+% @spec do_change_passwd(State::#server{}, HostID::string(),
+%                        NewPass::string()) -> Reply
+%       Reply = {ok, ok, #server{}}
+do_change_passwd(State, HostID, NewPass) ->
+    EndPoint = io_lib:format(?CHG_PAS_END, [HostID]),
+    ReqURL = State#rackspace.management_url ++ EndPoint,
+    ReqHdr = [ {?AUTH_TOKEN, State#rackspace.auth_token} ],
+    ReqBdy = create_chpasswd_json(NewPass),
+    {ok, Status, _RespHdrs, _RespBody} = ibrowse:send_req(ReqURL,
+                                                          ReqHdr,
+                                                          put,
+                                                          [ReqBdy]),
+    case Status of
+        "204" ->
+            {ok, ok, State};
+        "401" ->
+            {ok, NewState} = do_authenticate(State#rackspace.username,
+                                             State#rackspace.api_key,
+                                             State#rackspace.location),
+            do_change_passwd(NewState, HostID, NewPass)
+    end.
+
 % @doc Helper for creating server record.
 % @spec create_template(Name::string(), ImageID::int(), 
 %                       FlavourID::int()) -> #server{}
@@ -230,6 +261,14 @@ create_template(Name, ImageID, FlavourID) ->
     #server{image_id  = ImageID, 
             flavor_id = FlavourID,
             name      = Name}.
+
+% @doc Creates the JSON document for 
+%      {@link erlrack:change_passwd/2. change_passwd}.
+% @spec create_chpasswd_json(NewPass::string()) -> iolist()
+create_chpasswd_json(NewPass) ->
+    PassJ = { struct, [{<<"adminPass">>,list_to_binary(NewPass)}] },
+    Req   = { struct, [{<<"server">>, PassJ}] },
+    mochijson2:encode(Req).
 
 % @doc Converts a server record (template) into a JSON document.
 % @spec template2json(ServerTemplate::#server{}) -> iolist()
