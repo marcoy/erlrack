@@ -16,7 +16,8 @@
 %% ------------------------------------------------------------------
 
 -export([start_link/0, authenticate/2, authenticate/3, 
-         get_flavours/0, get_images/0, create_server/2]).
+         get_flavours/0, get_images/0, create_server/2,
+         list_server/0]).
 
 -export([create_template/3, template2json/1]).
 
@@ -70,6 +71,11 @@ get_images() ->
 create_server(ServerTemplate, Count) ->
     gen_server:call(?SERVER, {create_server, ServerTemplate, Count}).
 
+% @doc Lists all the Cloud Servers currently running.
+% @spec list_server() -> [dictionary()]
+list_server() ->
+    gen_server:call(?SERVER, list_server).
+
 %% ------------------------------------------------------------------
 %% gen_server Function Definitions
 %% ------------------------------------------------------------------
@@ -106,7 +112,11 @@ handle_call(images, _From, State) ->
 handle_call({ create_server, SrvTemplate, Count }, 
             _From, State) ->
     do_create_server(State, SrvTemplate, Count, []),
-    {reply, ok, State}.
+    {reply, ok, State};
+handle_call(list_server, _From, State) ->
+    {ok, RespBody, NewState} = do_get_resource(State, ?LST_SRV_END),
+    Reply = er_output:format_list_srv_output(RespBody),
+    {reply, Reply, NewState}.
 
 handle_cast(_Msg, State) ->
     {noreply, State}.
@@ -221,7 +231,7 @@ create_template(Name, ImageID, FlavourID) ->
             flavor_id = FlavourID,
             name      = Name}.
 
-% @doc Converts a server record (template) into a JSON.
+% @doc Converts a server record (template) into a JSON document.
 % @spec template2json(ServerTemplate::#server{}) -> iolist()
 template2json(ServerTemplate) ->
     #server{image_id  = ImageID, 

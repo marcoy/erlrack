@@ -13,7 +13,7 @@
 %% ------------------------------------------------------------------
 
 -export([format_img_output/1,format_flavour_output/1,
-         format_create_srv_output/1]).
+         format_create_srv_output/1, format_list_srv_output/1]).
 
 %% ------------------------------------------------------------------
 %% API Function Definitions
@@ -48,6 +48,15 @@ format_create_srv_output(Input) ->
     Server = proplists:get_value(<<"server">>, SrvObj),
     extractServerDetails(Server).
 
+% @doc Formats the output of {@link erlrack:list_server/0. list_server}
+%      into a list of dictionaries.
+% @spec format_list_srv_output(Input::string()) -> [dictionary()]
+format_list_srv_output(Input) ->
+    InputJson = mochijson2:decode(Input),
+    {struct, ServersObj} = InputJson,
+    ServerList = proplists:get_value(<<"servers">>, ServersObj),
+    extractServerListDetails(ServerList, []).
+
 %% ------------------------------------------------------------------
 %% Helper Function Definitions
 %% ------------------------------------------------------------------
@@ -80,7 +89,7 @@ extractServerDetails(Server) ->
                 {"imageId", proplists:get_value(<<"imageId">>, Details)},
                 {"flavorId", proplists:get_value(<<"flavorId">>, Details)},
                 {"adminPass", 
-                 binary_to_list(proplists:get_value(<<"adminPass">>, Details))},
+                 binary_to_list(proplists:get_value(<<"adminPass">>, Details, <<"">>))},
                 {"name",
                  binary_to_list(proplists:get_value(<<"name">>, Details))},
                 {"hostId",
@@ -89,4 +98,10 @@ extractServerDetails(Server) ->
                 {"privateIP", PriIP}
                ],
     dict:from_list(DictList).
+
+extractServerListDetails([], DList) ->
+    DList;
+extractServerListDetails([S|Servers], DList) ->
+    SrvDict = extractServerDetails(S),
+    extractServerListDetails(Servers, [SrvDict|DList]).
 
