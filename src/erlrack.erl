@@ -17,7 +17,7 @@
 
 -export([start_link/0, authenticate/2, authenticate/3, 
          get_flavours/0, get_images/0, create_server/2,
-         list_server/0, change_passwd/2]).
+         list_server/0, change_passwd/2, delete_server/1]).
 
 -export([create_template/3, template2json/1, create_chpasswd_json/1]).
 
@@ -81,6 +81,11 @@ list_server() ->
 change_passwd(HostID, NewPass) ->
     gen_server:call(?SERVER, {change_passwd, HostID, NewPass}).
 
+% @doc Deletes an existing Cloud Server.
+% @spec delete_server(HostID::string()) -> ok
+delete_server(HostID) ->
+    gen_server:call(?SERVER, {delete_server, HostID}).
+
 %% ------------------------------------------------------------------
 %% gen_server Function Definitions
 %% ------------------------------------------------------------------
@@ -124,6 +129,9 @@ handle_call(list_server, _From, State) ->
     {reply, Reply, NewState};
 handle_call({change_passwd, HostID, NewPass}, _From, State) ->
     {ok, Reply, NewState} = do_change_passwd(State, HostID, NewPass),
+    {reply, Reply, NewState};
+handle_call({delete_server, HostID}, _From, State) ->
+    {ok, Reply, NewState} = do_delete_server(State, HostID),
     {reply, Reply, NewState}.
 
 handle_cast(_Msg, State) ->
@@ -233,7 +241,7 @@ do_get_resource(State, ResourceEndPoint) ->
 % @doc Changes the password of a Cloud Server.
 % @spec do_change_passwd(State::#server{}, HostID::string(),
 %                        NewPass::string()) -> Reply
-%       Reply = {ok, ok, #server{}}
+%       Reply = {ok, ok, #rackspace{}}
 do_change_passwd(State, HostID, NewPass) ->
     EndPoint = io_lib:format(?CHG_PAS_END, [HostID]),
     ReqURL = State#rackspace.management_url ++ EndPoint,
@@ -251,6 +259,32 @@ do_change_passwd(State, HostID, NewPass) ->
                                              State#rackspace.api_key,
                                              State#rackspace.location),
             do_change_passwd(NewState, HostID, NewPass)
+    end.
+
+% @doc Using Cloud Server API to delete an existing cloud server.
+% @spec do_delete_server(State::#server{}, HostID::string) ->
+%       {ok, ok, #rackspace{}}
+do_delete_server(State, HostID) ->
+    EndPoint = io_lib:format(?DEL_SRV_END, [HostID]),
+    ReqURL = State#rackspace.management_url ++ EndPoint,
+    ReqHdr = [ {?AUTH_TOKEN, State#rackspace.auth_token} ],
+    {ok, Status, _RespHdrs, _RespBody} = ibrowse:send_req(ReqURL,
+                                                          ReqHdr,
+                                                          delete),
+    case Status of
+        "204" ->
+            {ok, ok, State};
+        "404" ->
+            {ok, "Could not find server", State};
+        "409" ->
+            {ok, "Building in progress", State};
+        "503" ->
+            {ok, "Service unavailable", State};
+        "401" ->
+            {ok, NewState} = do_authenticate(State#rackspace.username,
+                                             State#rackspace.api_key,
+                                             State#rackspace.location),
+            do_delete_server(NewState, HostID)
     end.
 
 % @doc Helper for creating server record.

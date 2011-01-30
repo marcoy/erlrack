@@ -19,6 +19,7 @@
 -define(SRV_END, "/servers").
 -define(LST_SRV_END, "/servers/detail").
 -define(CHG_PAS_END, "/servers/~s").
+-define(DEL_SRV_END, "/servers/~s").
 
 % Rackspace server
 -record(server, {name, image_id, flavor_id}).
