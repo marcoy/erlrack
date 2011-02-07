@@ -6,7 +6,8 @@
   {modules, [
               erlrack,
               erlrack_app,
-              erlrack_sup
+              erlrack_sup,
+              er_output
             ]},
   {applications, [
                   kernel,
